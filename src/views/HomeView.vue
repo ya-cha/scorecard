@@ -5,6 +5,7 @@ interface Boulder {
   number: number
   z: boolean
   t: boolean
+  f: boolean
 }
 
 const boulders = ref<Boulder[]>([])
@@ -14,7 +15,8 @@ const initializeBoulders = () => {
   boulders.value = Array.from({ length: 90 }, (_, i) => ({
     number: i + 1,
     z: false,
-    t: false
+    t: false,
+    f: false
   }))
 }
 
@@ -24,7 +26,11 @@ const loadData = () => {
   if (savedData) {
     try {
       const parsedData = JSON.parse(savedData)
-      boulders.value = parsedData
+      // Migration für bestehende Daten ohne f-Property
+      boulders.value = parsedData.map((boulder: any) => ({
+        ...boulder,
+        f: boulder.f !== undefined ? boulder.f : false
+      }))
     } catch (error) {
       console.error('Fehler beim Laden der Daten:', error)
       initializeBoulders()
@@ -52,6 +58,17 @@ const toggleTop = (boulder: Boulder) => {
   saveData()
 }
 
+// Flash umschalten
+const toggleFlash = (boulder: Boulder) => {
+  boulder.f = !boulder.f
+  // Wenn F angekreuzt wird, werden Z und T automatisch auch angekreuzt
+  if (boulder.f) {
+    if (!boulder.z) boulder.z = true
+    if (!boulder.t) boulder.t = true
+  }
+  saveData()
+}
+
 // Daten im lokalen Speicher speichern
 const saveData = () => {
   localStorage.setItem('scorecard-data', JSON.stringify(boulders.value))
@@ -68,6 +85,7 @@ const clearAllData = () => {
 // Berechnete Eigenschaften für Statistiken
 const zCount = computed(() => boulders.value.filter(b => b.z).length)
 const tCount = computed(() => boulders.value.filter(b => b.t).length)
+const fCount = computed(() => boulders.value.filter(b => b.f).length)
 const totalBoulders = computed(() => boulders.value.length)
 const completionPercentage = computed(() => {
   if (totalBoulders.value === 0) return 0
@@ -101,7 +119,8 @@ watch(boulders, () => {
         class="boulder-item"
         :class="{ 
           'has-z': boulder.z, 
-          'has-t': boulder.t 
+          'has-t': boulder.t,
+          'has-f': boulder.f
         }"
       >
         <div class="boulder-number">{{ boulder.number }}</div>
@@ -123,6 +142,14 @@ watch(boulders, () => {
           >
             T
           </button>
+          <button 
+            @click="toggleFlash(boulder)"
+            class="action-btn flash-btn"
+            :class="{ 'active': boulder.f }"
+            title="Flash (Erster Versuch)"
+          >
+            F
+          </button>
         </div>
       </div>
     </div>
@@ -137,6 +164,10 @@ watch(boulders, () => {
         <div class="stat-item">
           <div class="stat-number">{{ tCount }}</div>
           <div class="stat-label">Top (T)</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">{{ fCount }}</div>
+          <div class="stat-label">Flash (F)</div>
         </div>
         <div class="stat-item">
           <div class="stat-number">{{ totalBoulders }}</div>
@@ -222,18 +253,23 @@ watch(boulders, () => {
 }
 
 .boulder-item.has-z {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.boulder-item.has-t {
   border-color: #10b981;
   background: #f0fdf4;
 }
 
-.boulder-item.has-t {
-  border-color: #f59e0b;
-  background: #fffbeb;
+.boulder-item.has-f {
+  border-color: #8b5cf6;
+  background: #faf5ff;
 }
 
-.boulder-item.has-z.has-t {
-  border-color: #f59e0b;
-  background: #fffbeb;
+.boulder-item.has-z.has-t.has-f {
+  border-color: #8b5cf6;
+  background: #faf5ff;
 }
 
 .boulder-number {
@@ -246,20 +282,20 @@ watch(boulders, () => {
 .button-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .action-btn {
   border: 2px solid #e5e7eb;
   background: white;
   color: #6b7280;
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s;
-  min-height: 36px;
+  min-height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -308,6 +344,23 @@ watch(boulders, () => {
   border-color: #10b981;
 }
 
+/* Flash Button Styles */
+.flash-btn {
+  border-color: #8b5cf6;
+}
+
+.flash-btn:hover:not(:disabled) {
+  background: #8b5cf6;
+  color: white;
+  border-color: #8b5cf6;
+}
+
+.flash-btn.active {
+  background: #8b5cf6;
+  color: white;
+  border-color: #8b5cf6;
+}
+
 /* Disabled State */
 .action-btn:disabled {
   opacity: 0.6;
@@ -329,7 +382,7 @@ watch(boulders, () => {
 
 .stats-container {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 12px;
   text-align: center;
 }
@@ -392,9 +445,9 @@ watch(boulders, () => {
   }
 
   .action-btn {
-    padding: 6px 10px;
-    font-size: 0.8rem;
-    min-height: 32px;
+    padding: 5px 8px;
+    font-size: 0.75rem;
+    min-height: 24px;
   }
 
   .statistics {
